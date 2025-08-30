@@ -56,6 +56,12 @@ class Debt:
 class PersonNotInGroup(Exception):
     pass
 
+class TransactionNotInGroup(Exception):
+    pass
+
+class PersonAlreadyInGroup(Exception):
+    pass
+
 class Group:
     def __init__(self, name: str, currency: str):
         self.name = name
@@ -88,10 +94,14 @@ class Group:
     def add_person(self, person: Person): 
         if person not in self.persons:
             self.persons.append(person)
+        else:
+            raise PersonAlreadyInGroup(f"Person {person} already in group {self.name}")
 
     def remove_person(self, person: Person): 
         if person in self.persons:
             self.persons.remove(person)
+        else:
+            raise PersonNotInGroup(f"Person {person} not in group {self.name}")
 
     def _add_debt(self, debt: Debt):
         self.debts.append(debt)
@@ -105,6 +115,8 @@ class Group:
                 self._add_debt(Debt(transaction.debtors[i], transaction.who_paid, transaction.split_amounts[i]*get_convertion_rate(transaction.currency, self.currency)))
                 
             self.debts = minimize_debts(self.debts)
+        else:
+            raise TransactionNotInGroup("Transaction not found in group")
     
 
 def get_net_owed_balances(debts: List[Debt]) -> dict:
@@ -162,6 +174,3 @@ def get_convertion_rate(from_currency: str, to_currency: str) -> float:
             return 1 / conversion_rates[(to_currency, from_currency)]
         except KeyError:
             raise ValueError(f"No conversion rate available for {from_currency} to {to_currency}")
-
-
-    
