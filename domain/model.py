@@ -29,18 +29,18 @@ class Person:
 @dataclass
 class DebtorShare:
     debtor: "Person"
-    split_amount: float
+    split_amount_cents: int
 
 @dataclass(order=True)
 class Debt: 
     debtor: Person = field(compare=False)
     creditor: Person = field(compare=False)
-    amount: float
+    amount_cents: int
 
 class Transaction:
-    def __init__(self, who_paid: Person, amount: float, currency: str, debtor_shares: List[DebtorShare], category: str, date_time: date, id: Optional[str] = None):
+    def __init__(self, who_paid: Person, amount_cents: int, currency: str, debtor_shares: List[DebtorShare], category: str, date_time: date, id: Optional[str] = None):
         self.who_paid = who_paid
-        self.amount = amount
+        self.amount_cents = amount_cents
         self.currency = currency
         self.debtor_shares = debtor_shares
         self.category = category
@@ -51,7 +51,7 @@ class Transaction:
         return (
             f"Transaction("
             f"who_paid={self.who_paid}, "
-            f"amount={self.amount}, "
+            f"amount={self.amount_cents}, "
             f"currency={self.currency}, "
             f"debtor_shares={self.debtor_shares}, "
             f"category={self.category}, "
@@ -97,8 +97,10 @@ class Group:
                 conversion_rate = get_convertion_rate(t.currency, self.currency)
 
                 if ds.debtor != t.who_paid:
-                    amount = -ds.split_amount * conversion_rate
-                    raw_debts.append(Debt(debtor=ds.debtor, creditor=t.who_paid, amount=amount))
+                    amount_cents = round(-ds.split_amount_cents * conversion_rate)
+                    raw_debts.append(
+                        Debt(debtor=ds.debtor, creditor=t.who_paid, amount_cents=amount_cents)
+                    )
         self.debts = minimize_debts(raw_debts)
 
     @property
@@ -107,7 +109,7 @@ class Group:
         for t in self.transactions:
             conversion_rate = get_convertion_rate(t.currency, self.currency)
             for ds in t.debtor_shares:
-                shares[ds.debtor] = shares.get(ds.debtor, 0) + ds.split_amount * conversion_rate
+                shares[ds.debtor] = shares.get(ds.debtor, 0) + ds.split_amount_cents * conversion_rate
         return shares
 
     def add_person(self, person: Person): 
@@ -120,13 +122,11 @@ class Group:
         self.debts.append(debt)
 
 def get_net_owed_balances(debts: List[Debt]) -> dict:
-        owed_balances = {}
-
-        for debt in debts:
-            owed_balances[debt.debtor] = owed_balances.get(debt.debtor, 0) - debt.amount
-            owed_balances[debt.creditor] = owed_balances.get(debt.creditor, 0) + debt.amount
-
-        return owed_balances
+    owed_balances = {}
+    for debt in debts:
+        owed_balances[debt.debtor] = owed_balances.get(debt.debtor, 0) - debt.amount_cents
+        owed_balances[debt.creditor] = owed_balances.get(debt.creditor, 0) + debt.amount_cents
+    return owed_balances
 
 
 def minimize_debts(debts: List[Debt]) -> List[Debt]:
@@ -163,7 +163,7 @@ def minimize_debts(debts: List[Debt]) -> List[Debt]:
         if new_pos_amount > 0:
             heapq.heappush(positive_debts, (new_pos_amount, index_creditor, creditor))
 
-    return [d for d in settlements if abs(d.amount) > 0]
+    return [d for d in settlements if abs(d.amount_cents) > 0]
 
 def get_convertion_rate(from_currency: str, to_currency: str) -> float:
     if from_currency == to_currency:
