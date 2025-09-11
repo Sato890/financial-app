@@ -45,13 +45,13 @@ def insert_group_person(session, group_id, person_id):
 def insert_transaction(session, transaction_id, who_paid_id, group_id, amount, category, currency="EUR"):
     session.execute(
         text(
-            "INSERT INTO transactions (id, who_paid_id, amount, currency, category, date_time, group_id) "
-            "VALUES (:id, :who_paid_id, :amount, :currency, :category, :date_time, :group_id)"
+            "INSERT INTO transactions (id, who_paid_id, amount_in_cents, currency, category, date_time, group_id) "
+            "VALUES (:id, :who_paid_id, :amount_in_cents, :currency, :category, :date_time, :group_id)"
         ),
         {
             "id": transaction_id,
             "who_paid_id": who_paid_id,
-            "amount": amount,
+            "amount_in_cents": amount,
             "currency": currency,
             "category": category,
             "date_time": date.today(),
@@ -63,19 +63,19 @@ def insert_transaction(session, transaction_id, who_paid_id, group_id, amount, c
 def insert_debtor_share(session, transaction_id, debtor_id, split_amount):
     session.execute(
         text(
-            "INSERT INTO debtor_shares (transaction_id, debtor_id, split_amount) "
-            "VALUES (:transaction_id, :debtor_id, :split_amount)"
+            "INSERT INTO debtor_shares (transaction_id, debtor_id, split_amount_in_cents) "
+            "VALUES (:transaction_id, :debtor_id, :split_amount_in_cents)"
         ),
-        {"transaction_id": transaction_id, "debtor_id": debtor_id, "split_amount": split_amount},
+        {"transaction_id": transaction_id, "debtor_id": debtor_id, "split_amount_in_cents": split_amount},
     )
 
 def insert_debt(session, group_id, debtor_id, creditor_id, amount):
     session.execute(
         text(
-            "INSERT INTO debts (group_id, debtor_id, creditor_id, amount) "
-            "VALUES (:group_id, :debtor_id, :creditor_id, :amount)"
+            "INSERT INTO debts (group_id, debtor_id, creditor_id, amount_in_cents) "
+            "VALUES (:group_id, :debtor_id, :creditor_id, :amount_in_cents)"
         ),
-        {"group_id": group_id, "debtor_id": debtor_id, "creditor_id": creditor_id, "amount": amount},
+        {"group_id": group_id, "debtor_id": debtor_id, "creditor_id": creditor_id, "amount_in_cents": amount},
     )
 
 
