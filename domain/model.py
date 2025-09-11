@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import heapq
 from typing import List, Optional
 from datetime import date
+from domain.convertion_rates import conversion_rates
 
 class Person:
     def __init__(self, name: str, id: Optional[str] = None):
@@ -64,9 +65,10 @@ class Transaction:
         return hash(self.id)
     
 class Group:
-    def __init__(self, name: str, id: Optional[str] = None):
+    def __init__(self, name: str, currency: str, id: Optional[str] = None):
         self.id = id or uuid.uuid4()
         self.name = name
+        self.currency = currency
         self.persons = set()
         self.transactions = []
         self.debts = []            
@@ -90,7 +92,7 @@ class Group:
         for t in self.transactions:
             for ds in t.debtor_shares:
                 if ds.debtor != t.who_paid:
-                    amount = -ds.split_amount
+                    amount = -ds.split_amount * get_convertion_rate(t.currency, self.currency)
                     raw_debts.append(Debt(debtor=ds.debtor, creditor=t.who_paid, amount=amount))
         self.debts = minimize_debts(raw_debts)
 
@@ -156,3 +158,14 @@ def minimize_debts(debts: List[Debt]) -> List[Debt]:
             heapq.heappush(positive_debts, (new_pos_amount, index_creditor, creditor))
 
     return [d for d in settlements if abs(d.amount) > 0]
+
+def get_convertion_rate(from_currency: str, to_currency: str) -> float:
+    if from_currency == to_currency:
+        return 1.0
+    try:
+        return conversion_rates[(from_currency, to_currency)]
+    except KeyError:
+        try:
+            return 1 / conversion_rates[(to_currency, from_currency)]
+        except KeyError:
+            raise ValueError(f"No conversion rate available for {from_currency} to {to_currency}")

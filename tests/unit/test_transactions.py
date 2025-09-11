@@ -206,5 +206,23 @@ def test_remove_transaction_and_check_debts():
     
     assert group.total_share[person1] == 250
 
+def test_different_currencies_in_transaction():
+    group = Group("group1", "EUR")
+
+    person1 = Person("Luigi")
+    person2 = Person("Mario")
+
+    group.add_person(person1)
+    group.add_person(person2)
+
+    share1 = DebtorShare(person1, 100)
+    share2 = DebtorShare(person2, 100)
+
+    transaction = Transaction(person1, 200, "EUR", [share1, share2], "Spesa", date.today())
+    group.add_transaction(transaction)
+
+    assert group.total_share[person2] == 100*get_convertion_rate(transaction.currency, group.currency)
+    debt1 = Debt(person2, person1, 100*get_convertion_rate(transaction.currency, group.currency)) 
+    assert debt1 in group.debts
 
     
