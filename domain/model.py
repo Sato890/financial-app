@@ -31,7 +31,7 @@ class DebtorShare:
     debtor: "Person"
     split_amount_cents: int
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class Debt: 
     debtor: Person = field(compare=False)
     creditor: Person = field(compare=False)
