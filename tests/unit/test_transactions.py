@@ -224,5 +224,6 @@ def test_different_currencies_in_transaction():
     assert group.total_share[person2] == 100*get_convertion_rate(transaction.currency, group.currency)
     debt1 = Debt(person2, person1, 100*get_convertion_rate(transaction.currency, group.currency)) 
     assert debt1 in group.debts
+    assert group.total_share == {person1: 100, person2: 100}
 
     

@@ -94,8 +94,10 @@ class Group:
         raw_debts = []
         for t in self.transactions:
             for ds in t.debtor_shares:
+                conversion_rate = get_convertion_rate(t.currency, self.currency)
+
                 if ds.debtor != t.who_paid:
-                    amount = -ds.split_amount * get_convertion_rate(t.currency, self.currency)
+                    amount = -ds.split_amount * conversion_rate
                     raw_debts.append(Debt(debtor=ds.debtor, creditor=t.who_paid, amount=amount))
         self.debts = minimize_debts(raw_debts)
 
@@ -103,8 +105,9 @@ class Group:
     def total_share(self) -> dict:
         shares = {}
         for t in self.transactions:
+            conversion_rate = get_convertion_rate(t.currency, self.currency)
             for ds in t.debtor_shares:
-                shares[ds.debtor] = shares.get(ds.debtor, 0) + ds.split_amount
+                shares[ds.debtor] = shares.get(ds.debtor, 0) + ds.split_amount * conversion_rate
         return shares
 
     def add_person(self, person: Person): 
