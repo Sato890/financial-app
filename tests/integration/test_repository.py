@@ -42,16 +42,16 @@ def insert_group_person(session, group_id, person_id):
         {"group_id": group_id, "person_id": person_id},
     )
 
-def insert_transaction(session, transaction_id, who_paid_id, group_id, amount, category, currency="EUR"):
+def insert_transaction(session, transaction_id, who_paid_id, group_id, amount_cents, category, currency="EUR"):
     session.execute(
         text(
-            "INSERT INTO transactions (id, who_paid_id, amount_in_cents, currency, category, date_time, group_id) "
-            "VALUES (:id, :who_paid_id, :amount_in_cents, :currency, :category, :date_time, :group_id)"
+            "INSERT INTO transactions (id, who_paid_id, amount_cents, currency, category, date_time, group_id) "
+            "VALUES (:id, :who_paid_id, :amount_cents, :currency, :category, :date_time, :group_id)"
         ),
         {
             "id": transaction_id,
             "who_paid_id": who_paid_id,
-            "amount_in_cents": amount,
+            "amount_cents": amount_cents,
             "currency": currency,
             "category": category,
             "date_time": date.today(),
@@ -60,22 +60,22 @@ def insert_transaction(session, transaction_id, who_paid_id, group_id, amount, c
     )
     return transaction_id
 
-def insert_debtor_share(session, transaction_id, debtor_id, split_amount):
+def insert_debtor_share(session, transaction_id, debtor_id, split_amount_cents):
     session.execute(
         text(
-            "INSERT INTO debtor_shares (transaction_id, debtor_id, split_amount_in_cents) "
-            "VALUES (:transaction_id, :debtor_id, :split_amount_in_cents)"
+            "INSERT INTO debtor_shares (transaction_id, debtor_id, split_amount_cents) "
+            "VALUES (:transaction_id, :debtor_id, :split_amount_cents)"
         ),
-        {"transaction_id": transaction_id, "debtor_id": debtor_id, "split_amount_in_cents": split_amount},
+        {"transaction_id": transaction_id, "debtor_id": debtor_id, "split_amount_cents": split_amount_cents},
     )
 
-def insert_debt(session, group_id, debtor_id, creditor_id, amount):
+def insert_debt(session, group_id, debtor_id, creditor_id, amount_cents):
     session.execute(
         text(
-            "INSERT INTO debts (group_id, debtor_id, creditor_id, amount_in_cents) "
-            "VALUES (:group_id, :debtor_id, :creditor_id, :amount_in_cents)"
+            "INSERT INTO debts (group_id, debtor_id, creditor_id, amount_cents) "
+            "VALUES (:group_id, :debtor_id, :creditor_id, :amount_cents)"
         ),
-        {"group_id": group_id, "debtor_id": debtor_id, "creditor_id": creditor_id, "amount_in_cents": amount},
+        {"group_id": group_id, "debtor_id": debtor_id, "creditor_id": creditor_id, "amount_cents": amount_cents},
     )
 
 
@@ -90,10 +90,10 @@ def test_repository_can_retrieve_a_group_with_transactions(session):
     insert_person(session, pr_id2, "Mario")
     insert_group_person(session, gr_id1, pr_id1)
     insert_group_person(session, gr_id1, pr_id2)
-    insert_transaction(session, tr_id1, who_paid_id=pr_id1, group_id=gr_id1, amount=200, category="Dinner")
-    insert_debtor_share(session, tr_id1, debtor_id=pr_id1, split_amount=100)
-    insert_debtor_share(session, tr_id1, debtor_id=pr_id2, split_amount=100)
-    insert_debt(session, gr_id1, debtor_id=pr_id2, creditor_id=pr_id1, amount=100)
+    insert_transaction(session, tr_id1, who_paid_id=pr_id1, group_id=gr_id1, amount_cents=20000, category="Dinner")
+    insert_debtor_share(session, tr_id1, debtor_id=pr_id1, split_amount_cents=10000)
+    insert_debtor_share(session, tr_id1, debtor_id=pr_id2, split_amount_cents=10000)
+    insert_debt(session, gr_id1, debtor_id=pr_id2, creditor_id=pr_id1, amount_cents=10000)
     
     repo = repository.SqlRepository(session)
     retrieved = repo.get(gr_id1)
@@ -110,7 +110,81 @@ def test_repository_can_retrieve_a_group_with_transactions(session):
     assert {str(ds.debtor.id): ds.split_amount for ds in t.debtor_shares} == {pr_id1: 100, pr_id2: 100}
 
     assert len(retrieved.debts) == 1
-    d = retrieved.debts[0]
+    d = list(retrieved.debts)[0]
     assert str(d.debtor.id) == pr_id2
     assert str(d.creditor.id) == pr_id1
     assert d.amount == 100
+
+def test_updating_a_group(session):
+
+    
+    
+    group1 = model.Group("group1", "EUR")
+    person1 = model.Person("Luigi")
+    person2 = model.Person("Mario")
+    share1 = model.DebtorShare(person1, 10000)
+    share2 = model.DebtorShare(person2, 10000)
+    transaction1 = model.Transaction(person1, 100, "EUR", [share1, share2], "Trip", date.today())
+    transaction2 = model.Transaction(person1, 100, "EUR", [share1, share2], "Trip", date.today())
+
+    group1.add_person(person1)
+    group1.add_person(person2)
+    group1.add_transaction(transaction1)
+
+    repo = repository.SqlRepository(session)
+    repo.add(group1)
+    session.commit()
+
+    retrieved = repo.get(group1.id)
+
+    assert len(retrieved.transactions) == 1
+    t = retrieved.transactions[0]
+
+    assert transaction1 in retrieved.transactions 
+    assert transaction2 not in retrieved.transactions
+
+    group1.add_transaction(transaction2)
+
+    repo.add(group1)
+    session.commit()
+
+    retrieved = repo.get(group1.id)
+
+    assert len(retrieved.transactions) == 2
+    t = retrieved.transactions[0]
+
+    assert transaction1 in retrieved.transactions 
+    assert transaction2 in retrieved.transactions
+
+
+def test_removing_a_transaction_and_updating_a_group(session):
+    group1 = model.Group("group1", "EUR")
+    person1 = model.Person("Luigi")
+    person2 = model.Person("Mario")
+    share1 = model.DebtorShare(person1, 10000)
+    share2 = model.DebtorShare(person2, 10000)
+    transaction1 = model.Transaction(person1, 100, "EUR", [share1, share2], "Trip", date.today())
+
+    group1.add_person(person1)
+    group1.add_person(person2)
+    group1.add_transaction(transaction1)
+
+    repo = repository.SqlRepository(session)
+    repo.add(group1)
+    session.commit()
+
+    retrieved = repo.get(group1.id)
+
+    assert len(retrieved.transactions) == 1
+    t = retrieved.transactions[0]
+
+    assert transaction1 in retrieved.transactions 
+
+    group1.remove_transaction(transaction1)
+
+    repo.add(group1)
+    session.commit()
+
+    retrieved = repo.get(group1.id)
+
+    assert len(retrieved.transactions) == 0
