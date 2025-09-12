@@ -31,21 +31,33 @@ class DebtorShare:
     debtor: "Person"
     split_amount_cents: int
 
+    @property
+    def split_amount(self):
+        return self.split_amount_cents/100.0
+
 @dataclass(order=True, frozen=True)
 class Debt: 
     debtor: Person = field(compare=False)
     creditor: Person = field(compare=False)
     amount_cents: int
 
+    @property
+    def amount(self):
+        return self.amount_cents/100.0
+
 class Transaction:
-    def __init__(self, who_paid: Person, amount_cents: int, currency: str, debtor_shares: List[DebtorShare], category: str, date_time: date, id: Optional[str] = None):
+    def __init__(self, who_paid: Person, amount: float, currency: str, debtor_shares: List[DebtorShare], category: str, date_time: date, id: Optional[str] = None):
         self.who_paid = who_paid
-        self.amount_cents = amount_cents
+        self.amount_cents = int(amount*100)
         self.currency = currency
         self.debtor_shares = debtor_shares
         self.category = category
         self.date_time = date_time
         self.id = id or uuid.uuid4()
+
+    @property
+    def amount(self):
+        return self.amount_cents/100.0
 
     def __repr__(self):
         return (
@@ -74,7 +86,7 @@ class Group:
         self.debts = []            
 
     def __repr__(self):
-        return f"Group(\nname={self.name},\n currency={self.currency},\n persons={self.persons},\n transactions={len(self.transactions)},\n debts={get_net_owed_balances(self.debts)},\n amounts_paid={self.total_share}\n)"
+        return f"Group(\nname={self.name},\n currency={self.currency},\n persons={self.persons},\n transactions={len(self.transactions)},\n debts={get_net_owed_balances_cents(self.debts)},\n amounts_paid={self.total_share}\n)"
     
     def add_person(self, person: Person): 
         self.persons.add(person)
@@ -98,9 +110,8 @@ class Group:
 
                 if ds.debtor != t.who_paid:
                     amount_cents = round(-ds.split_amount_cents * conversion_rate)
-                    raw_debts.append(
-                        Debt(debtor=ds.debtor, creditor=t.who_paid, amount_cents=amount_cents)
-                    )
+                    debt = Debt(debtor=ds.debtor, creditor=t.who_paid, amount_cents=amount_cents)
+                    raw_debts.append(debt)
         self.debts = minimize_debts(raw_debts)
 
     @property
@@ -109,7 +120,7 @@ class Group:
         for t in self.transactions:
             conversion_rate = get_convertion_rate(t.currency, self.currency)
             for ds in t.debtor_shares:
-                shares[ds.debtor] = shares.get(ds.debtor, 0) + ds.split_amount_cents * conversion_rate
+                shares[ds.debtor] = shares.get(ds.debtor, 0) + (ds.split_amount_cents * conversion_rate)/100.0
         return shares
 
     def add_person(self, person: Person): 
@@ -118,10 +129,7 @@ class Group:
     def remove_person(self, person: Person): 
         self.persons.remove(person)
 
-    def _add_debt(self, debt: Debt):
-        self.debts.append(debt)
-
-def get_net_owed_balances(debts: List[Debt]) -> dict:
+def get_net_owed_balances_cents(debts: List[Debt]) -> dict:
     owed_balances = {}
     for debt in debts:
         owed_balances[debt.debtor] = owed_balances.get(debt.debtor, 0) - debt.amount_cents
@@ -131,7 +139,7 @@ def get_net_owed_balances(debts: List[Debt]) -> dict:
 
 def minimize_debts(debts: List[Debt]) -> List[Debt]:
     
-    net_debts = get_net_owed_balances(debts)
+    net_debts = get_net_owed_balances_cents(debts)
     negative_debts = []
     positive_debts = []
 

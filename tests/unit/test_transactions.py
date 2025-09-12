@@ -11,12 +11,18 @@ def test_adding_transaction_updates_total_share_by_person():
     group.add_person(person1)
     group.add_person(person2)
     
-    share1 = DebtorShare(person1, 100)
-    share2 = DebtorShare(person2, 100)
+    share1 = DebtorShare(person1, 10000)
+    share2 = DebtorShare(person2, 10000)
+
+    assert share1.split_amount_cents == 10000
+    assert share1.split_amount == 100
     
-    share3 = DebtorShare(person2, 200)
+    share3 = DebtorShare(person2, 20000)
 
     transaction = Transaction(person1, 200, "EUR", [share1, share2], "Trip", date.today())
+    
+    assert transaction.amount == 200
+
 
     group.add_transaction(transaction)
 
@@ -34,8 +40,8 @@ def test_adding_transaction_updates_debt_quantities():
     person1 = Person("luigi")
     person2 = Person("mario")
     
-    share1 = DebtorShare(person1, 100)
-    share2 = DebtorShare(person2, 100)
+    share1 = DebtorShare(person1, 10000)
+    share2 = DebtorShare(person2, 10000)
 
     group.add_person(person1)
     group.add_person(person2)
@@ -44,7 +50,9 @@ def test_adding_transaction_updates_debt_quantities():
 
     group.add_transaction(transaction)
 
-    debt1 = Debt(person2, person1, 100)
+    debt1 = Debt(person2, person1, 10000)
+
+    assert debt1.amount_cents == 10000
 
     assert debt1 in group.debts 
 
@@ -83,7 +91,7 @@ def test_calculate_net_debts():
 
     debts = [debt1, debt2, debt3]
 
-    net_balances = get_net_owed_balances(debts)
+    net_balances = get_net_owed_balances_cents(debts)
 
     assert net_balances[person1] == -70
     assert net_balances[person2] == +20
@@ -168,7 +176,7 @@ def test_add_multiple_transactions_and_check_debts():
     group.add_transaction(transaction2)
     group.add_transaction(transaction3)
 
-    net_balances = get_net_owed_balances(group.debts)
+    net_balances = get_net_owed_balances_cents(group.debts)
 
     assert net_balances[person1] == -100
     assert net_balances[person2] == +100
@@ -182,12 +190,12 @@ def test_remove_transaction_and_check_debts():
     group.add_person(person1)
     group.add_person(person2)
 
-    share1 = DebtorShare(person1, 150)
-    share2 = DebtorShare(person2, 150)
-    share3 = DebtorShare(person1, 100)
-    share4 = DebtorShare(person2, 100)
-    share5 = DebtorShare(person1, 500)
-    share6 = DebtorShare(person2, 500)
+    share1 = DebtorShare(person1, 15000)
+    share2 = DebtorShare(person2, 15000)
+    share3 = DebtorShare(person1, 10000)
+    share4 = DebtorShare(person2, 10000)
+    share5 = DebtorShare(person1, 50000)
+    share6 = DebtorShare(person2, 50000)
     
     transaction1 = Transaction(person1, 300, "EUR", [share1, share2], "Spesa1", date.today())
     transaction2 = Transaction(person2, 200, "EUR", [share3, share4], "Spesa2", date.today())
@@ -199,10 +207,10 @@ def test_remove_transaction_and_check_debts():
 
     group.remove_transaction(transaction3)
 
-    net_balances = get_net_owed_balances(group.debts)
+    net_balances = get_net_owed_balances_cents(group.debts)
 
-    assert net_balances[person1] == -50
-    assert net_balances[person2] == +50
+    assert net_balances[person1] == -5000
+    assert net_balances[person2] == +5000
     
     assert group.total_share[person1] == 250
 
@@ -215,15 +223,19 @@ def test_different_currencies_in_transaction():
     group.add_person(person1)
     group.add_person(person2)
 
-    share1 = DebtorShare(person1, 100)
-    share2 = DebtorShare(person2, 100)
+    share1 = DebtorShare(person1, 10000)
+    share2 = DebtorShare(person2, 10000)
 
-    transaction = Transaction(person1, 200, "EUR", [share1, share2], "Spesa", date.today())
+    transaction = Transaction(person1, 200, "USD", [share1, share2], "Spesa", date.today())
     group.add_transaction(transaction)
 
     assert group.total_share[person2] == 100*get_convertion_rate(transaction.currency, group.currency)
-    debt1 = Debt(person2, person1, 100*get_convertion_rate(transaction.currency, group.currency)) 
-    assert debt1 in group.debts
-    assert group.total_share == {person1: 100, person2: 100}
 
-    
+    debt1 = Debt(person2, person1, 10000*get_convertion_rate(transaction.currency, group.currency)) 
+
+    assert debt1 in group.debts
+    total_share_person1 = 100*get_convertion_rate(transaction.currency, group.currency)
+    total_share_person2 = 100*get_convertion_rate(transaction.currency, group.currency)
+    assert group.total_share == {person1: total_share_person1, person2: total_share_person2}
+
+
