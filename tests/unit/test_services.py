@@ -55,12 +55,17 @@ def transaction(person1, person2):
 
 def test_returns_allocation(group, transaction):
     repo = FakeRepository([group]) 
-    result = services.allocate(transaction, repo, FakeSession())
-    assert result == transaction.id
+    result = services.add_transaction(transaction, repo, FakeSession(), group.id)
+    assert result.id == group.id
 
 
-def test_error_for_invalid_payer(group, transaction):
+def test_error_for_invalid_payer(group, person1, person2):
     repo = FakeRepository([group])
+    invalid_person = model.Person("invalid_person")
+    share1 = model.DebtorShare(person1, 10000)
+    share2 = model.DebtorShare(person2, 10000)
 
-    with pytest.raises(services.InvalidSku, match="Invalid payer, person not in group"):
-        services.allocate(transaction, repo, FakeSession()) 
+    transaction = model.Transaction(invalid_person, 200, "EUR", [share1, share2], "Trip", date.today())
+
+    with pytest.raises(services.InvalidPerson, match="Not every person is in the group"):
+        services.add_transaction(transaction, repo, FakeSession(), group.id) 
