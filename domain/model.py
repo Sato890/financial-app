@@ -88,12 +88,7 @@ class Group:
     def __repr__(self):
         return f"Group(\nname={self.name},\n currency={self.currency},\n persons={self.persons},\n transactions={len(self.transactions)},\n debts={get_net_owed_balances_cents(self.debts)},\n amounts_paid={self.total_share}\n)"
     
-    def add_person(self, person: Person): 
-        self.persons.add(person)
-
-    def remove_person(self, person: Person): 
-        self.persons.remove(person)
-
+    
     def add_transaction(self, transaction: Transaction):
         self.transactions.append(transaction)
         self._recalculate_debts()
